@@ -45,11 +45,19 @@ st.subheader(
 )
 
 # --- BARRA LATERAL IZQUIERDA ---
+api_key_secret = ""
+try:
+    if "GEMINI_API_KEY" in st.secrets:
+        api_key_secret = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    pass
+
 st.sidebar.header("🔑 Configuración de IA")
 api_key = st.sidebar.text_input(
     "Gemini API Key (Opcional)",
+    value=api_key_secret,
     type="password",
-    help="Ingresa tu API Key de Google AI Studio para respuestas en vivo.",
+    help="Si la clave está guardada en la nube (Secrets), funcionará automáticamente para todos los visitantes."
 )
 
 st.sidebar.header("📍 Datos de la Obra y Coordenadas GPS")
