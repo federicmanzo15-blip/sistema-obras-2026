@@ -1,0 +1,6 @@
+streamlit
+google-genai
+plotly
+pandas
+folium
+streamlit-folium
