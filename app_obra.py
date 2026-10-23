@@ -2,6 +2,14 @@ import datetime
 import pandas as pd
 import streamlit as st
 
+# Importar Geocodificación (Nombres de ciudad/cantera a GPS)
+try:
+    from geopy.geocoders import Nominatim
+    geolocator = Nominatim(user_agent="sistema_experto_obras_2026")
+    GEOPY_AVAILABLE = True
+except Exception:
+    GEOPY_AVAILABLE = False
+
 # Importar librerías de Mapas GPS
 try:
     import folium
@@ -34,12 +42,22 @@ st.set_page_config(
     layout="wide",
 )
 
-# Inicializar bases de datos y memoria en la sesión de Streamlit
+# Inicializar bases de datos y memoria de coordenadas en Streamlit
 if "historial" not in st.session_state:
     st.session_state.historial = []
 
 if "dictamen_res" not in st.session_state:
     st.session_state.dictamen_res = None
+
+if "lat_obra" not in st.session_state:
+    st.session_state.lat_obra = -9.1200
+if "lon_obra" not in st.session_state:
+    st.session_state.lon_obra = -78.5200
+
+if "lat_prov" not in st.session_state:
+    st.session_state.lat_prov = -8.9800
+if "lon_prov" not in st.session_state:
+    st.session_state.lon_prov = -78.4100
 
 st.title("🏗️ Sistema Experto de Reprogramación de Cronogramas (2026)")
 st.subheader(
@@ -65,14 +83,30 @@ api_key = st.sidebar.text_input(
 st.sidebar.header("📍 Datos de la Obra y Coordenadas GPS")
 nombre_obra = st.sidebar.text_input("Nombre de la Obra", "Puente / Edificación A")
 ubicacion_obra = st.sidebar.text_input(
-    "Ubicación / Ciudad de Obra", "Nuevo Chimbote, Ancash"
+    "Ubicación / Ciudad de Obra", "Nuevo Chimbote, Ancash, Peru"
 )
+
+# Geocodificación para la Obra
+if GEOPY_AVAILABLE:
+    if st.sidebar.button("🔍 Buscar GPS de la Obra", use_container_width=True):
+        try:
+            loc_obra = geolocator.geocode(ubicacion_obra, timeout=10)
+            if loc_obra:
+                st.session_state.lat_obra = loc_obra.latitude
+                st.session_state.lon_obra = loc_obra.longitude
+                st.sidebar.success("✅ GPS de Obra encontrado")
+            else:
+                st.sidebar.warning("⚠️ No se encontró la ubicación. Ingresa coordenadas manualmente.")
+        except Exception:
+            st.sidebar.error("⚠️ Error de conexión al buscar GPS.")
 
 col_lat1, col_lon1 = st.sidebar.columns(2)
 with col_lat1:
-    lat_obra = st.number_input("Latitud Obra", value=-9.1200, format="%.4f")
+    lat_obra = st.number_input("Latitud Obra", value=st.session_state.lat_obra, format="%.4f", key="input_lat_obra")
+    st.session_state.lat_obra = lat_obra
 with col_lon1:
-    lon_obra = st.number_input("Longitud Obra", value=-78.5200, format="%.4f")
+    lon_obra = st.number_input("Longitud Obra", value=st.session_state.lon_obra, format="%.4f", key="input_lon_obra")
+    st.session_state.lon_obra = lon_obra
 
 fecha_inicio = st.sidebar.date_input("Fecha de Inicio de Obra", datetime.date.today())
 duracion_dias = st.sidebar.number_input(
@@ -81,14 +115,30 @@ duracion_dias = st.sidebar.number_input(
 
 st.sidebar.subheader("🚚 Cantera / Proveedor y Coordenadas")
 ubicacion_proveedor = st.sidebar.text_input(
-    "Nombre Proveedor / Cantera", "Cantera San Rafael"
+    "Nombre Proveedor / Cantera", "Cantera San Rafael, Chimbote, Peru"
 )
+
+# Geocodificación para la Cantera
+if GEOPY_AVAILABLE:
+    if st.sidebar.button("🔍 Buscar GPS de la Cantera", use_container_width=True):
+        try:
+            loc_prov = geolocator.geocode(ubicacion_proveedor, timeout=10)
+            if loc_prov:
+                st.session_state.lat_prov = loc_prov.latitude
+                st.session_state.lon_prov = loc_prov.longitude
+                st.sidebar.success("✅ GPS de Cantera encontrado")
+            else:
+                st.sidebar.warning("⚠️ No se encontró la cantera. Ingresa coordenadas manualmente.")
+        except Exception:
+            st.sidebar.error("⚠️ Error de conexión al buscar GPS.")
 
 col_lat2, col_lon2 = st.sidebar.columns(2)
 with col_lat2:
-    lat_prov = st.number_input("Latitud Cantera", value=-8.9800, format="%.4f")
+    lat_prov = st.number_input("Latitud Cantera", value=st.session_state.lat_prov, format="%.4f", key="input_lat_prov")
+    st.session_state.lat_prov = lat_prov
 with col_lon2:
-    lon_prov = st.number_input("Longitud Cantera", value=-78.4100, format="%.4f")
+    lon_prov = st.number_input("Longitud Cantera", value=st.session_state.lon_prov, format="%.4f", key="input_lon_prov")
+    st.session_state.lon_prov = lon_prov
 
 distancia_km = st.sidebar.number_input(
     "Distancia de Transporte (km)", min_value=1.0, value=45.0
@@ -372,14 +422,14 @@ with tab_mapa:
     )
 
     if MAPS_AVAILABLE:
-        center_lat = (lat_obra + lat_prov) / 2
-        center_lon = (lon_obra + lon_prov) / 2
+        center_lat = (st.session_state.lat_obra + st.session_state.lat_prov) / 2
+        center_lon = (st.session_state.lon_obra + st.session_state.lon_prov) / 2
 
         m = folium.Map(location=[center_lat, center_lon], zoom_start=11)
 
         # Marcador Obra (Rojo)
         folium.Marker(
-            [lat_obra, lon_obra],
+            [st.session_state.lat_obra, st.session_state.lon_obra],
             popup=f"🏗️ Obra: {nombre_obra}",
             tooltip=nombre_obra,
             icon=folium.Icon(color="red", icon="wrench"),
@@ -387,7 +437,7 @@ with tab_mapa:
 
         # Marcador Cantera (Azul)
         folium.Marker(
-            [lat_prov, lon_prov],
+            [st.session_state.lat_prov, st.session_state.lon_prov],
             popup=f"🚚 Cantera: {ubicacion_proveedor}",
             tooltip=ubicacion_proveedor,
             icon=folium.Icon(color="blue", icon="truck"),
@@ -395,18 +445,26 @@ with tab_mapa:
 
         # Línea de Trayecto
         folium.PolyLine(
-            locations=[[lat_prov, lon_prov], [lat_obra, lon_obra]],
+            locations=[
+                [st.session_state.lat_prov, st.session_state.lon_prov],
+                [st.session_state.lat_obra, st.session_state.lon_obra]
+            ],
             color="orange",
             weight=4,
             opacity=0.8,
             tooltip=f"Ruta de Transporte: {distancia_km} km",
         ).add_to(m)
 
-        st_folium(m, width=900, height=450, key=f"mapa_{lat_obra}_{lon_obra}_{lat_prov}_{lon_prov}")
+        st_folium(
+            m,
+            width=900,
+            height=450,
+            key=f"mapa_{st.session_state.lat_obra}_{st.session_state.lon_obra}_{st.session_state.lat_prov}_{st.session_state.lon_prov}"
+        )
     else:
         st.warning(
             "Para ver el Mapa Interactivo GPS ejecuta en tu consola: `py -m pip"
-            " install streamlit-folium folium`"
+            " install streamlit-folium folium geopy`"
         )
 
 # PESTAÑA 3: DIAGRAMA DE GANTT
@@ -484,8 +542,8 @@ with tab4:
 INFORME TÉCNICO DE REPROGRAMACIÓN DE CRONOGRAMA Y EVALUACIÓN FINANCIERA
 ================================================================================
 OBRA: {nombre_obra}
-UBICACIÓN: {ubicacion_obra} (Lat: {lat_obra}, Lon: {lon_obra})
-CANTERA: {ubicacion_proveedor} (Lat: {lat_prov}, Lon: {lon_prov})
+UBICACIÓN: {ubicacion_obra} (Lat: {st.session_state.lat_obra}, Lon: {st.session_state.lon_obra})
+CANTERA: {ubicacion_proveedor} (Lat: {st.session_state.lat_prov}, Lon: {st.session_state.lon_prov})
 FECHA DE REPORTE: {datetime.date.today().strftime("%d/%m/%Y")}
 
 1. DATOS GENERALES DEL PROYECTO:
