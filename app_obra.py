@@ -147,10 +147,19 @@ with col_izq:
       ),
       height=100,
   )
+modo_paralizacion = st.radio(
+    "Estado de la Paralización:",
+    ["Días definidos", "Indeterminado / En evaluación"],
+    help="Selecciona 'Indeterminado' si la solución o el suministro aún no ha sido resuelto."
+)
 
-  dias_parada_obra = st.number_input(
-      "Días de paralización directa en obra:", min_value=0, value=4
-  )
+if modo_paralizacion == "Días definidos":
+    dias_parada_obra = st.number_input("Días de paralización directa en obra:", min_value=1, value=4)
+    dias_texto = f"{dias_parada_obra} días calendarios"
+else:
+    dias_parada_obra = 0
+    dias_texto = "INDETERMINADO (Aún no solucionado)"
+    st.info("ℹ️ Al ser Indeterminado, la IA buscará canteras/proveedores alternativos cercanos, evaluará costos y estimará el tiempo para reactivar la obra.")
 
   c_btn1, c_btn2 = st.columns(2)
   with c_btn1:
@@ -265,34 +274,45 @@ def consultar_ia_ingenieria(
     try:
       client = genai.Client(api_key=api_key)
       prompt = f"""
-            Eres un Consultor Senior en Gestión de Obras de Ingeniería Civil y experto en la Ley de Contrataciones y reprogramación de cronogramas.
-            Analiza la siguiente contingencia técnico-económica en obra y proporciona un dictamen profesional:
+Eres un Consultor Senior en Gestión de Obras de Ingeniería Civil y experto en la Ley de Contrataciones y reprogramación de cronogramas.
 
-            - Nombre de la Obra: {obra}
-            - Causa principal: {tipo}
-            - Descripción detallada: {problema}
-            - Días de Parada directa: {dias_delay} días
-            - Días de Retraso total (incluyendo flete): {dias_retraso_total} días
-            - Distancia a la cantera/proveedor: {dist} km
-            
-            - IMPACTO FINANCIERO EVALUADO:
-              * Mayores Gastos Generales Variables: S/. {costo_gg:,.2f}
-              * Costo Mano de Obra en Stand-By: S/. {costo_mo:,.2f}
-              * Stand-By de Equipos/Maquinaria: S/. {costo_maq:,.2f}
-              * PERJUICIO ECONÓMICO TOTAL ESTIMADO: S/. {costo_total:,.2f}
+DATOS DE LA OBRA Y EVALUACIÓN:
+- Nombre de la Obra: {obra}
+- Causa principal: {tipo}
+- Descripción detallada: {problema}
+- Estado de Paralización: {dias_texto}
+- Distancia a la cantera/proveedor: {dist} km
+- Perjuicio Económico Estimado: S/. {costo_total:,.2f}
 
-            Responde en formato Markdown claro con estos 4 puntos:
-            1. **Diagnóstico Técnico de Ruta Crítica y Cronograma**
-            2. **Evaluación Financiera de Mayores Gastos Generales y Sobrecostos**
-            3. **Estrategia Recomendada de Mitigación (Técnica y Económica)**
-            4. **Asiento del Cuaderno de Obra para Sustento del Reclamo/Ampliación de Plazo**
-            """
-      response = client.models.generate_content(
-          model="gemini-3.8-flash", contents=prompt
-      )
-      return response.text
+INSTRUCCIONES DE ANÁLISIS TÉCNICO:
+1. SI LA PARALIZACIÓN ES "INDETERMINADO":
+   a) Identifica y menciona canteras, proveedores o distribuidores de materiales de construcción reales cercanos a la zona de la obra.
+   b) Compara las opciones en cuanto a distancia geográfica y economía (estimando costos referenciales de flete o m3 de agregados si aplica).
+   c) Realiza una ESTIMACIÓN DEL TIEMPO TOTAL DE REACTIVACIÓN DE LA OBRA desglosando:
+      - Trámite administrativo y desembolso presupuestal (días).
+      - Adquisición, carga y flete de suministro alternativo (días).
+      - Preparación y movilización a obra (días).
+      - Colchón / Máximo estimado de retardo de contingencia (días).
+   d) Presenta el total de días proyectados para la reanudación de los trabajos.
+
+2. SI TIENE DÍAS DEFINIDOS:
+   a) Diagnóstico Técnico de Ruta Crítica y Cronograma.
+   b) Evaluación Financiera de Mayores Gastos Generales y Sobrecostos.
+
+3. ESTRATEGIA RECOMENDADA Y ASIENTO DEL CUADERNO DE OBRA para Sustento del Reclamo/Ampliación de Plazo.
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        return response.text
     except Exception as e:
-      return f"⚠️ Error al conectar con la API de IA: {str(e)}"
+        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "quota" in str(e).lower():
+            return "⚠️ Se alcanzó el límite temporal de la versión gratuita de Gemini. Por favor, espera 60 segundos y vuelve a consultar."
+        else:
+            return f"⚠️ Error al conectar con la API de IA: {str(e)}"
   else:
     return f"""
         *(Modo Simulado - Ingresa una API Key en la barra lateral para conectar con la IA en vivo)*
@@ -373,7 +393,7 @@ with tab_mapa:
         tooltip=f"Ruta de Transporte: {distancia_km} km",
     ).add_to(m)
 
-    st_folium(m, width=900, height=450)
+    st_folium(m, width=900, height=450, key=f"mapa_{lat_obra}_{lon_obra}_{lat_cantera}_{lon_cantera}")
   else:
     st.warning(
         "Para ver el Mapa Interactivo GPS ejecuta en tu consola: `py -m pip"
