@@ -34,9 +34,12 @@ st.set_page_config(
     layout="wide",
 )
 
-# Inicializar la base de datos local de incidencias
+# Inicializar bases de datos y memoria en la sesión de Streamlit
 if "historial" not in st.session_state:
     st.session_state.historial = []
+
+if "dictamen_res" not in st.session_state:
+    st.session_state.dictamen_res = None
 
 st.title("🏗️ Sistema Experto de Reprogramación de Cronogramas (2026)")
 st.subheader(
@@ -65,7 +68,6 @@ ubicacion_obra = st.sidebar.text_input(
     "Ubicación / Ciudad de Obra", "Nuevo Chimbote, Ancash"
 )
 
-# Coordenadas por defecto (Ejemplo: Ancash / Perú)
 col_lat1, col_lon1 = st.sidebar.columns(2)
 with col_lat1:
     lat_obra = st.number_input("Latitud Obra", value=-9.1200, format="%.4f")
@@ -248,17 +250,7 @@ with col_der:
 
 st.markdown("---")
 
-# --- SECCIÓN DE 5 PESTAÑAS PRINCIPALES ---
-tab1, tab_mapa, tab2, tab3, tab4 = st.tabs([
-    "🤖 Dictamen con IA",
-    "🗺️ Mapa de Ruta GPS",
-    "📊 Diagrama de Gantt",
-    "🗄️ Historial de Incidencias",
-    "📄 Exportar Informe Técnico",
-])
-
-
-# Función de consulta a la IA con mensajes de error amables
+# Función de consulta a la IA con mensajes amables
 def consultar_ia_ingenieria(
     problema,
     tipo,
@@ -339,25 +331,37 @@ El costo directo e indirecto generado asciende a **S/. {costo_total:,.2f}**, des
 *Asiento N° XX - Residencia de Obra:* Se deja constancia del evento de fuerza mayor y la paralización de la ruta crítica. Se cuantifica preliminarmente el perjuicio económico en **S/. {costo_total:,.2f}** y una afectación de **{dias_retraso_total} días**, reservando el derecho a solicitar la Ampliación de Plazo y el reconocimiento de Mayores Gastos Generales Variables según la normativa vigente.
 """
 
+# Ejecutar la IA SOLAMENTE cuando se haga clic explícito en el botón
+if btn_analizar:
+    with st.spinner("La IA está analizando la obra y calculando costos..."):
+        st.session_state.dictamen_res = consultar_ia_ingenieria(
+            descripcion_problema,
+            tipo_problema,
+            dias_parada_obra,
+            nombre_obra,
+            distancia_km,
+            costo_total_contingencia,
+            costo_tot_gg,
+            costo_tot_cuadrillas,
+            costo_tot_maquinaria,
+        )
 
-dictamen_res = consultar_ia_ingenieria(
-    descripcion_problema,
-    tipo_problema,
-    dias_parada_obra,
-    nombre_obra,
-    distancia_km,
-    costo_total_contingencia,
-    costo_tot_gg,
-    costo_tot_cuadrillas,
-    costo_tot_maquinaria,
-)
+# --- SECCIÓN DE 5 PESTAÑAS PRINCIPALES ---
+tab1, tab_mapa, tab2, tab3, tab4 = st.tabs([
+    "🤖 Dictamen con IA",
+    "🗺️ Mapa de Ruta GPS",
+    "📊 Diagrama de Gantt",
+    "🗄️ Historial de Incidencias",
+    "📄 Exportar Informe Técnico",
+])
 
 # PESTAÑA 1: DICTAMEN IA
 with tab1:
     st.subheader("🤖 Dictamen del Consultor Virtual (IA)")
-    if btn_analizar or descripcion_problema:
-        with st.spinner("La IA está analizando la obra y calculando costos..."):
-            st.markdown(dictamen_res)
+    if st.session_state.dictamen_res:
+        st.markdown(st.session_state.dictamen_res)
+    else:
+        st.info("👈 Haz clic en el botón **`🤖 Generar Análisis con IA`** para procesar la contingencia.")
 
 # PESTAÑA 2: MAPA DE RUTA GPS
 with tab_mapa:
@@ -474,6 +478,8 @@ with tab3:
 with tab4:
     st.subheader("📄 Generar e Imprimir Informe Técnico Oficial")
 
+    dictamen_informe = st.session_state.dictamen_res if st.session_state.dictamen_res else "*(Genera el análisis con IA para incluirlo en este informe)*"
+
     informe_texto = f"""================================================================================
 INFORME TÉCNICO DE REPROGRAMACIÓN DE CRONOGRAMA Y EVALUACIÓN FINANCIERA
 ================================================================================
@@ -505,7 +511,7 @@ FECHA DE REPORTE: {datetime.date.today().strftime("%d/%m/%Y")}
 
 5. DICTAMEN TÉCNICO Y ASIENTO EN CUADERNO DE OBRA (IA):
 --------------------------------------------------------------------------------
-{dictamen_res}
+{dictamen_informe}
 ================================================================================
 """
 
