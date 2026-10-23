@@ -356,6 +356,10 @@ INSTRUCCIONES DE ANÁLISIS TÉCNICO:
    b) Evaluación Financiera de Mayores Gastos Generales y Sobrecostos.
 
 3. ESTRATEGIA RECOMENDADA Y ASIENTO DEL CUADERNO DE OBRA para Sustento del Reclamo/Ampliación de Plazo.
+
+4. ESTIMACIÓN DE MATERIALES Y SOBRECOSTOS DIRECTOS (Si en la descripción se mencionan insumos como cemento, bolsas, m3, fierro, etc.):
+   a) Calcula o estima la cantidad de insumos requeridos para el volumen indicado.
+   b) Aplica precios unitarios referenciales del mercado (en S/.) y entrega un presupuesto estimado del material y flete.
 """
 
     # 2. Bucle de rotación rápida entre las 15 claves
