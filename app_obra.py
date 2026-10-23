@@ -312,10 +312,28 @@ def consultar_ia_ingenieria(
     costo_mo,
     costo_maq,
 ):
-    if api_key and AI_AVAILABLE:
-        try:
-            client = genai.Client(api_key=api_key)
-            prompt = f"""
+    # 1. Pool de API Keys (Clave manual + 15 claves de Streamlit Secrets)
+    keys_pool = []
+    
+    if api_key:
+        keys_pool.append(api_key)
+        
+    try:
+        if "GEMINI_KEYS" in st.secrets:
+            keys_pool.extend(st.secrets["GEMINI_KEYS"])
+        elif "GEMINI_API_KEY" in st.secrets:
+            keys_pool.append(st.secrets["GEMINI_API_KEY"])
+    except Exception:
+        pass
+
+    keys_pool = [k.strip() for k in keys_pool if k and k.strip()]
+
+    if not keys_pool or not AI_AVAILABLE:
+        return "⚠️ No hay ninguna API Key configurada. Ingresa una en la barra lateral o en Secrets."
+
+    dias_texto = f"{dias_delay} días calendario" if tipo == "Días definidos" else "INDETERMINADO (Aún no solucionado)"
+
+    prompt = f"""
 Eres un Consultor Senior en Gestión de Obras de Ingeniería Civil y experto en la Ley de Contrataciones y reprogramación de cronogramas.
 
 DATOS DE LA OBRA Y EVALUACIÓN:
@@ -329,12 +347,8 @@ DATOS DE LA OBRA Y EVALUACIÓN:
 INSTRUCCIONES DE ANÁLISIS TÉCNICO:
 1. SI LA PARALIZACIÓN ES "INDETERMINADO":
    a) Identifica y menciona canteras, proveedores o distribuidores de materiales de construcción reales cercanos a la zona de la obra.
-   b) Compara las opciones en cuanto a distancia geográfica y economía (estimando costos referenciales de flete o m3 de agregados si aplica).
-   c) Realiza una ESTIMACIÓN DEL TIEMPO TOTAL DE REACTIVACIÓN DE LA OBRA desglosando:
-      - Trámite administrativo y desembolso presupuestal (días).
-      - Adquisición, carga y flete de suministro alternativo (días).
-      - Preparación y movilización a obra (días).
-      - Colchón / Máximo estimado de retardo de contingencia (días).
+   b) Compara las opciones en cuanto a distancia geográfica y economía.
+   c) Realiza una ESTIMACIÓN DEL TIEMPO TOTAL DE REACTIVACIÓN DE LA OBRA desglosando trámites, flete, preparación y colchón de retardo.
    d) Presenta el total de días proyectados para la reanudación de los trabajos.
 
 2. SI TIENE DÍAS DEFINIDOS:
@@ -344,42 +358,19 @@ INSTRUCCIONES DE ANÁLISIS TÉCNICO:
 3. ESTRATEGIA RECOMENDADA Y ASIENTO DEL CUADERNO DE OBRA para Sustento del Reclamo/Ampliación de Plazo.
 """
 
-            try:
-                response = client.models.generate_content(
-                    model="gemini-3.8-flash",
-                    contents=prompt
-                )
-                return response.text
-            except Exception as e:
-                err_msg = str(e).lower()
-                if "503" in err_msg or "unavailable" in err_msg:
-                    return "⏳ **El servidor de la IA está experimentando alta demanda en este momento.**\n\nPor favor, espera unos 15 a 20 segundos y vuelve a hacer clic en el botón **`🤖 Generar Análisis con IA`**."
-                elif "429" in err_msg or "resource_exhausted" in err_msg or "quota" in err_msg:
-                    return "⌛ **Se alcanzó el límite de solicitudes temporales de la IA.**\n\nPor favor, espera unos 60 segundos antes de realizar una nueva consulta."
-                else:
-                    return f"⚠️ **No se pudo completar la consulta con la IA en este intento.**\n\n*(Detalle técnico: {e})*. Por favor, reintenta en un momento."
-        except Exception as e:
-            return f"⚠️ **Ocurrió un inconveniente al validar la clave API:** {e}"
-    else:
-        return f"""
-*(Modo Simulado - Ingresa una API Key en la barra lateral para conectar con la IA en vivo)*
+    # 2. Bucle de rotación rápida entre las 15 claves
+    for key_candidata in keys_pool:
+        try:
+            client = genai.Client(api_key=key_candidata)
+            response = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt
+            )
+            return response.text
+        except Exception:
+            continue
 
-**1. Diagnóstico Técnico de Ruta Crítica y Cronograma:**  
-La contingencia (*{tipo}*) interrumpe la partida crítica en obra. La paralización directa de {dias_delay} días sumada al sesgo flete genera una extensión de **{dias_retraso_total} días calendario**.
-
-**2. Evaluación Financiera de Mayores Gastos Generales:**  
-El costo directo e indirecto generado asciende a **S/. {costo_total:,.2f}**, desglosado en:
-- Mayores Gastos Generales: S/. {costo_gg:,.2f}
-- Horas caídas de Mano de Obra: S/. {costo_mo:,.2f}
-- Improductividad de Maquinaria: S/. {costo_maq:,.2f}
-
-**3. Estrategia Recomendada de Mitigación:**  
-- Negociar el traslado inmediato de la maquinaria en stand-by hacia frentes secundarios de trabajo no críticos.
-- Optimizar la logística de flete para evitar acumulación de costos por días en stand-by.
-
-**4. Asiento para Cuaderno de Obra:**  
-*Asiento N° XX - Residencia de Obra:* Se deja constancia del evento de fuerza mayor y la paralización de la ruta crítica. Se cuantifica preliminarmente el perjuicio económico en **S/. {costo_total:,.2f}** y una afectación de **{dias_retraso_total} días**, reservando el derecho a solicitar la Ampliación de Plazo y el reconocimiento de Mayores Gastos Generales Variables según la normativa vigente.
-"""
+    return "⌛ **Se agotó temporalmente la cuota en todas las claves.** Por favor, reintenta en unos segundos."
 
 # Ejecutar la IA SOLAMENTE cuando se haga clic explícito en el botón
 if btn_analizar:
