@@ -258,7 +258,7 @@ tab1, tab_mapa, tab2, tab3, tab4 = st.tabs([
 ])
 
 
-# Función de consulta a la IA
+# Función de consulta a la IA con mensajes de error amables
 def consultar_ia_ingenieria(
     problema,
     tipo,
@@ -309,12 +309,15 @@ INSTRUCCIONES DE ANÁLISIS TÉCNICO:
                 )
                 return response.text
             except Exception as e:
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "quota" in str(e).lower():
-                    return "⚠️ Se alcanzó el límite temporal de la versión gratuita de Gemini. Por favor, espera 60 segundos y vuelve a consultar."
+                err_msg = str(e).lower()
+                if "503" in err_msg or "unavailable" in err_msg:
+                    return "⏳ **El servidor de la IA está experimentando alta demanda en este momento.**\n\nPor favor, espera unos 15 a 20 segundos y vuelve a hacer clic en el botón **`🤖 Generar Análisis con IA`**."
+                elif "429" in err_msg or "resource_exhausted" in err_msg or "quota" in err_msg:
+                    return "⌛ **Se alcanzó el límite de solicitudes temporales de la IA.**\n\nPor favor, espera unos 60 segundos antes de realizar una nueva consulta."
                 else:
-                    return f"⚠️ Error al conectar con la API de IA: {str(e)}"
+                    return f"⚠️ **No se pudo completar la consulta con la IA en este intento.**\n\n*(Detalle técnico: {e})*. Por favor, reintenta en un momento."
         except Exception as e:
-            return f"⚠️ Error de configuración de cliente API: {str(e)}"
+            return f"⚠️ **Ocurrió un inconveniente al validar la clave API:** {e}"
     else:
         return f"""
 *(Modo Simulado - Ingresa una API Key en la barra lateral para conectar con la IA en vivo)*
