@@ -80,10 +80,21 @@ api_key = st.sidebar.text_input(
     help="Si la clave está guardada en la nube (Secrets), funcionará automáticamente para todos los visitantes."
 )
 
+# Inicializar variables de estado para los controles si no existen
+if "input_lat_obra" not in st.session_state:
+    st.session_state.input_lat_obra = -9.1200
+if "input_lon_obra" not in st.session_state:
+    st.session_state.input_lon_obra = -78.5200
+
+if "input_lat_prov" not in st.session_state:
+    st.session_state.input_lat_prov = -8.9800
+if "input_lon_prov" not in st.session_state:
+    st.session_state.input_lon_prov = -78.4100
+
 st.sidebar.header("📍 Datos de la Obra y Coordenadas GPS")
-nombre_obra = st.sidebar.text_input("Nombre de la Obra", "Puente / Edificación A")
+nombre_obra = st.sidebar.text_input("Nombre de la Obra", "Puente Urbano Chiclayo")
 ubicacion_obra = st.sidebar.text_input(
-    "Ubicación / Ciudad de Obra", "Nuevo Chimbote, Ancash, Peru"
+    "Ubicación / Ciudad de Obra", "Chiclayo, Lambayeque, Peru"
 )
 
 # Geocodificación para la Obra
@@ -92,8 +103,8 @@ if GEOPY_AVAILABLE:
         try:
             loc_obra = geolocator.geocode(ubicacion_obra, timeout=10)
             if loc_obra:
-                st.session_state.lat_obra = loc_obra.latitude
-                st.session_state.lon_obra = loc_obra.longitude
+                st.session_state.input_lat_obra = loc_obra.latitude
+                st.session_state.input_lon_obra = loc_obra.longitude
                 st.sidebar.success("✅ GPS de Obra encontrado")
             else:
                 st.sidebar.warning("⚠️ No se encontró la ubicación. Ingresa coordenadas manualmente.")
@@ -102,11 +113,12 @@ if GEOPY_AVAILABLE:
 
 col_lat1, col_lon1 = st.sidebar.columns(2)
 with col_lat1:
-    lat_obra = st.number_input("Latitud Obra", value=st.session_state.lat_obra, format="%.4f", key="input_lat_obra")
-    st.session_state.lat_obra = lat_obra
+    lat_obra = st.number_input("Latitud Obra", format="%.4f", key="input_lat_obra")
 with col_lon1:
-    lon_obra = st.number_input("Longitud Obra", value=st.session_state.lon_obra, format="%.4f", key="input_lon_obra")
-    st.session_state.lon_obra = lon_obra
+    lon_obra = st.number_input("Longitud Obra", format="%.4f", key="input_lon_obra")
+
+st.session_state.lat_obra = lat_obra
+st.session_state.lon_obra = lon_obra
 
 fecha_inicio = st.sidebar.date_input("Fecha de Inicio de Obra", datetime.date.today())
 duracion_dias = st.sidebar.number_input(
@@ -115,7 +127,7 @@ duracion_dias = st.sidebar.number_input(
 
 st.sidebar.subheader("🚚 Cantera / Proveedor y Coordenadas")
 ubicacion_proveedor = st.sidebar.text_input(
-    "Nombre Proveedor / Cantera", "Cantera San Rafael, Chimbote, Peru"
+    "Nombre Proveedor / Cantera", "Ferreñafe, Lambayeque, Peru"
 )
 
 # Geocodificación para la Cantera
@@ -124,8 +136,8 @@ if GEOPY_AVAILABLE:
         try:
             loc_prov = geolocator.geocode(ubicacion_proveedor, timeout=10)
             if loc_prov:
-                st.session_state.lat_prov = loc_prov.latitude
-                st.session_state.lon_prov = loc_prov.longitude
+                st.session_state.input_lat_prov = loc_prov.latitude
+                st.session_state.input_lon_prov = loc_prov.longitude
                 st.sidebar.success("✅ GPS de Cantera encontrado")
             else:
                 st.sidebar.warning("⚠️ No se encontró la cantera. Ingresa coordenadas manualmente.")
@@ -134,11 +146,12 @@ if GEOPY_AVAILABLE:
 
 col_lat2, col_lon2 = st.sidebar.columns(2)
 with col_lat2:
-    lat_prov = st.number_input("Latitud Cantera", value=st.session_state.lat_prov, format="%.4f", key="input_lat_prov")
-    st.session_state.lat_prov = lat_prov
+    lat_prov = st.number_input("Latitud Cantera", format="%.4f", key="input_lat_prov")
 with col_lon2:
-    lon_prov = st.number_input("Longitud Cantera", value=st.session_state.lon_prov, format="%.4f", key="input_lon_prov")
-    st.session_state.lon_prov = lon_prov
+    lon_prov = st.number_input("Longitud Cantera", format="%.4f", key="input_lon_prov")
+
+st.session_state.lat_prov = lat_prov
+st.session_state.lon_prov = lon_prov
 
 distancia_km = st.sidebar.number_input(
     "Distancia de Transporte (km)", min_value=1.0, value=45.0
